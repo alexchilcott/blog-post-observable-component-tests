@@ -4,6 +4,7 @@ use crate::Configuration;
 use actix_web::dev::Server;
 use actix_web::web::{get, Data};
 use actix_web::{App, HttpServer};
+use actix_web_prom::PrometheusMetricsBuilder;
 use anyhow::Context;
 use reqwest::ClientBuilder;
 use std::net::TcpListener;
@@ -25,8 +26,14 @@ pub async fn run_server(
 
     let cat_images_api = Data::new(CatImagesApi::new(config.cat_images_api_base_url, client));
 
+    let prometheus = PrometheusMetricsBuilder::new("")
+        .endpoint("/metrics")
+        .build()
+        .unwrap();
+
     let server = HttpServer::new(move || {
         App::new()
+            .wrap(prometheus.clone())
             .app_data(cat_images_api.clone())
             .app_data(cat_facts_api.clone())
             .route("/cat", get().to(get_cat_route::handler))
