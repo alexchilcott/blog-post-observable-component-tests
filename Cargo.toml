@@ -1,0 +1,2 @@
+[workspace]
+members = ["cat_server", "mock_jaeger_collector"]
