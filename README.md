@@ -19,7 +19,7 @@ This repository contains a cargo workspace consisting of two crates:
 
 - `cargo run`
 - `curl http://localhost:12345/cat`
-- Optionally, you can also run `docker-compose up` to start a local Jaeger instance, viewable at http://localhost:16686
+- Optionally, you can also run `docker-compose up` to start a local Jaeger instance, viewable at [`http://localhost:16686`](http://localhost:16686)
 
 ## To Test
 
