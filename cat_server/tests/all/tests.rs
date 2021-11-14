@@ -1,4 +1,4 @@
-use crate::api_models::CatFactAndPicture;
+use crate::api_models::CatFactAndImageUrl;
 use crate::test_harness::TestHarness;
 use crate::utilities::retry_loop::{retry_until_ok, RetryTimeoutError};
 use crate::utilities::span_extensions::SpanExt;
@@ -10,7 +10,7 @@ use mock_jaeger_collector::{
 use opentelemetry::global::force_flush_tracer_provider;
 use prometheus_parse::{Scrape, Value};
 use rctree::Node;
-use reqwest::StatusCode;
+use reqwest::{Response, StatusCode};
 use std::time::Duration;
 use tracing::info_span;
 use tracing_futures::Instrument;
@@ -34,7 +34,7 @@ pub async fn cat_endpoint_retrieves_fact_and_image_url_from_apis_and_returns_the
         .send()
         .await
         .expect("Failed to make request to server")
-        .json::<CatFactAndPicture>()
+        .json::<CatFactAndImageUrl>()
         .await
         .expect("Failed to deserialize body");
 
@@ -79,15 +79,9 @@ pub async fn metrics_endpoint_after_successfully_handling_cat_request_returns_co
 
     // Assert
     // Parse the body of the response from the /metrics endpoint
-    let metrics = Scrape::parse(
-        response
-            .text()
-            .await
-            .expect("Failed to read body")
-            .lines()
-            .map(|line| Ok(line.to_owned())),
-    )
-    .expect("Failed to parse prometheus response");
+    let metrics = parse_metrics_response(response)
+        .await
+        .expect("Failed to parse metrics");
 
     // Then check the `http_requests_total` metric
     let sample = metrics
@@ -136,15 +130,9 @@ pub async fn metrics_endpoint_after_unsuccessfully_handling_cat_request_returns_
 
     // Assert
     // Parse the body of the response from the /metrics endpoint
-    let metrics = Scrape::parse(
-        response
-            .text()
-            .await
-            .expect("Failed to read body")
-            .lines()
-            .map(|line| Ok(line.to_owned())),
-    )
-    .expect("Failed to parse prometheus response");
+    let metrics = parse_metrics_response(response)
+        .await
+        .expect("Failed to parse metrics");
 
     // Then check the `http_requests_total` metric
     let sample = metrics
@@ -194,31 +182,27 @@ pub async fn cat_endpoint_sends_a_trace_that_show_outgoing_http_calls() {
     // Assert
     // We now expect, within a reasonable time frame, for our span to be available in our
     // local jaeger instance
-    wait_for_trace(
-        test_harness.global_jaeger_collector_server,
-        trace_id,
-        |trace| {
-            let image_request_span = trace
-                .descendants()
-                .find(|s| s.borrow().operation_name == "GET /v1/images/search")
-                .ok_or_else(|| anyhow!(r#"No span found named "GET /v1/images/search""#))?;
+    wait_10_seconds_for_trace(test_harness.jaeger_collector_server, trace_id, |trace| {
+        let image_request_span = trace
+            .descendants()
+            .find(|s| s.borrow().operation_name == "GET /v1/images/search")
+            .ok_or_else(|| anyhow!(r#"No span found named "GET /v1/images/search""#))?;
 
-            check_tag(&image_request_span, "http.method", TagValue::String("GET"))
-                .context("cat images api span was not correct")?;
-            check_tag(&image_request_span, "http.status_code", TagValue::Long(200))
-                .context("cat images api span was not correct")?;
+        check_tag(&image_request_span, "http.method", TagValue::String("GET"))
+            .context("cat images api span was not correct")?;
+        check_tag(&image_request_span, "http.status_code", TagValue::Long(200))
+            .context("cat images api span was not correct")?;
 
-            let fact_request_span = trace
-                .descendants()
-                .find(|s| s.borrow().operation_name == "GET /fact")
-                .ok_or_else(|| anyhow!(r#"No span found named "GET /fact""#))?;
+        let fact_request_span = trace
+            .descendants()
+            .find(|s| s.borrow().operation_name == "GET /fact")
+            .ok_or_else(|| anyhow!(r#"No span found named "GET /fact""#))?;
 
-            check_tag(&fact_request_span, "http.method", TagValue::String("GET"))
-                .context("cat images api span was not correct")?;
-            check_tag(&fact_request_span, "http.status_code", TagValue::Long(200))
-                .context("cat images api span was not correct")
-        },
-    )
+        check_tag(&fact_request_span, "http.method", TagValue::String("GET"))
+            .context("cat images api span was not correct")?;
+        check_tag(&fact_request_span, "http.status_code", TagValue::Long(200))
+            .context("cat images api span was not correct")
+    })
     .await
     .expect("Expected trace was not available within timeout");
 }
@@ -257,8 +241,8 @@ pub async fn cat_endpoint_sends_a_trace_that_shows_the_incoming_http_request() {
     // Assert
     // We now expect, within a reasonable time frame, for our span to be available in our
     // local jaeger instance
-    wait_for_trace(
-        test_harness.global_jaeger_collector_server,
+    wait_10_seconds_for_trace(
+        test_harness.jaeger_collector_server,
         trace_id.clone(),
         |trace| {
             let span_node = trace
@@ -295,7 +279,14 @@ fn check_tag(span: &Node<Span>, key: &str, expected_value: TagValue) -> Result<(
     }
 }
 
-async fn wait_for_trace<F>(
+async fn parse_metrics_response(response: Response) -> Result<Scrape, anyhow::Error> {
+    let text = response.text().await.context("Failed to read body")?;
+    let lines = text.lines().map(|line| Ok(line.to_owned()));
+    let parsed_scrape = Scrape::parse(lines).context("Failed to parse scrape from response")?;
+    Ok(parsed_scrape)
+}
+
+async fn wait_10_seconds_for_trace<F>(
     otel_collector: &DetachedJaegerCollectorServer,
     trace_id: String,
     check_trace: F,

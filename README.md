@@ -8,13 +8,6 @@ Disclaimer: This code is provided AS IS. It is NOT intended as an example of a p
 
 - [Rust](https://www.rust-lang.org/tools/install), version >= `1.56.1`.
 
-## Layout
-
-This repository contains a cargo workspace consisting of two crates:
-
-- `cat_server`, the main binary of our hypothetical HTTP server;
-- `mock_jaeger_collector`, a library crate consisting of a mock Jaeger collector service, for use in component testing.
-
 ## To Run
 
 - `cargo run`
@@ -24,3 +17,10 @@ This repository contains a cargo workspace consisting of two crates:
 ## To Test
 
 Run `cargo test`. No additional services are assumed to be running.
+
+## Layout
+
+This repository contains a cargo workspace consisting of two crates:
+
+- `cat_server`, the main binary, that hosts our HTTP server;
+- `mock_jaeger_collector`, a library crate consisting of a mock Jaeger collector service, for use in component testing.

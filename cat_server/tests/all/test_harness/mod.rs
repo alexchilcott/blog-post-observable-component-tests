@@ -95,7 +95,7 @@ pub struct TestHarness {
     /// It should be noted that this is static and shared across tests.
     /// Tests should therefore only be querying for specific traces they
     /// produce.
-    pub global_jaeger_collector_server: &'static DetachedJaegerCollectorServer,
+    pub jaeger_collector_server: &'static DetachedJaegerCollectorServer,
 }
 
 impl TestHarness {
@@ -103,7 +103,7 @@ impl TestHarness {
     /// returning a `TestHarness` which can be used to interact with
     /// the service and the mocks.
     pub async fn start() -> TestHarness {
-        let global_mock_otel_collector = initialise_telemetry_collection().await;
+        let mock_otel_collector = initialise_telemetry_collection().await;
         let mock_cat_images_api = MockCatImagesApi::new().await;
         let mock_cat_facts_api = MockCatFactsApi::new().await;
 
@@ -115,7 +115,7 @@ impl TestHarness {
             port,
             cat_images_api_base_url: mock_cat_images_api.base_url(),
             cat_facts_api_base_url: mock_cat_facts_api.base_url(),
-            collector_url: global_mock_otel_collector.base_url(),
+            collector_url: mock_otel_collector.base_url(),
         };
 
         let server = run_server(config.clone(), listener);
@@ -135,7 +135,7 @@ impl TestHarness {
             config,
             mock_cat_images_api,
             mock_cat_facts_api,
-            global_jaeger_collector_server: global_mock_otel_collector,
+            jaeger_collector_server: mock_otel_collector,
         }
     }
 

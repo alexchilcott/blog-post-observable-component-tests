@@ -7,7 +7,7 @@ use crate::data_sources::cat_facts_api::CatFactsApi;
 use crate::data_sources::cat_images_api::CatImagesApi;
 
 #[derive(Serialize)]
-struct CatFactAndPicture {
+struct CatFactAndImageUrl {
     pub fact: String,
     pub image_url: String,
 }
@@ -16,7 +16,7 @@ struct CatFactAndPicture {
 async fn get_cat_fact_and_image(
     cat_facts_api: &CatFactsApi,
     cat_images_api: &CatImagesApi,
-) -> Result<CatFactAndPicture, anyhow::Error> {
+) -> Result<CatFactAndImageUrl, anyhow::Error> {
     let fact = cat_facts_api
         .get_fact()
         .await
@@ -27,7 +27,7 @@ async fn get_cat_fact_and_image(
         .await
         .context("Failed to get a cat image url")?;
 
-    Ok(CatFactAndPicture { fact, image_url })
+    Ok(CatFactAndImageUrl { fact, image_url })
 }
 
 #[instrument(skip(cat_facts_api, cat_images_api))]
