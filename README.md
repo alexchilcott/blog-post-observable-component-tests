@@ -1,6 +1,6 @@
 # When Is A Black Box Test Not A Black Box Test?
 
-The code in this repo accompanies [this article](https://alexchilcott.github.io/posts/black-box-tests/), as a demonstration of one way the observability of a service can be exercised and verified during automated tests.
+The code in this repo accompanies [this article](https://alexchilcott.github.io/posts/when-is-a-black-box-test-not-a-black-box-test/), as a demonstration of one way the observability of a service can be exercised and verified during automated tests.
 
 Disclaimer: This code is provided AS IS. It is NOT intended as an example of a production-ready service.
 
